@@ -32,7 +32,9 @@
 #include "imxrt_start.h"
 #include "sentai-rt1176.h"
 #include "arm_internal.h"
-#include "imxrt_flexspi_nor_boot.h"
+#ifdef CONFIG_BOOT_RUNFROMFLASH
+#  include "imxrt_flexspi_nor_boot.h"
+#endif
 
 /****************************************************************************
  * Public Functions
@@ -45,10 +47,15 @@
  *   Called off reset vector to reconfigure the flexRAM
  *   and finish the FLASH to RAM Copy.
  *
+ *   Only meaningful for FlexSPI-XIP boot. For RAM-loaded images
+ *   (CONFIG_BOOT_RUNFROMISRAM) the loader has already placed all
+ *   sections, so the function is a no-op.
+ *
  ****************************************************************************/
 
 void imxrt_ocram_initialize(void)
 {
+#ifdef CONFIG_BOOT_RUNFROMFLASH
   const uint32_t *src;
   uint32_t *dest;
   uint32_t regval;
@@ -73,6 +80,7 @@ void imxrt_ocram_initialize(void)
     {
       *dest++ = *src++;
     }
+#endif
 }
 
 /****************************************************************************

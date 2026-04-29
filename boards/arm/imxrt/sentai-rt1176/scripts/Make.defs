@@ -27,7 +27,9 @@ include $(TOPDIR)/arch/arm/src/armv7-m/Toolchain.defs
 ifeq ($(CONFIG_BOOT_RUNFROMFLASH),y)
   LDSCRIPT = flash.ld
 else ifeq ($(CONFIG_BOOT_RUNFROMISRAM),y)
-  LDSCRIPT = flash-ocram.ld
+  # Pure RAM: image is pushed by an external loader (flashtool --ram)
+  # straight into OCRAM/DTCM. No FlexSPI XIP, no copy-from-NOR.
+  LDSCRIPT = ram.ld
 endif
 
 ARCHSCRIPT += $(BOARD_DIR)$(DELIM)scripts$(DELIM)$(LDSCRIPT)

@@ -274,6 +274,13 @@
 #define GPIO_LPUART3_RX      (GPIO_LPUART3_RX_1|IOMUX_UART_DEFAULT)             /* GPIO_AD_B1_07 */
 #define GPIO_LPUART3_TX      (GPIO_LPUART3_TX_1|IOMUX_UART_DEFAULT)             /* GPIO_AD_B1_06 */
 
+/* Sentai RT1176: LPUART6 = M7 debug console (matches coralmicro pin
+ * assignment from third_party/modified/nxp/rt1176-sdk/pin_mux.c).
+ */
+
+#define GPIO_LPUART6_RX      (GPIO_LPUART6_RX_1|IOMUX_UART_DEFAULT)             /* GPIO_EMC_B1_41 */
+#define GPIO_LPUART6_TX      (GPIO_LPUART6_TX_1|IOMUX_UART_DEFAULT)             /* GPIO_EMC_B1_40 */
+
 /* LPI2Cs
  *
  * Arduino Connector LPI2C1 and audio/gyro IO on LPI2C5.

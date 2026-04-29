@@ -22,8 +22,15 @@
 
 include $(TOPDIR)/Make.defs
 
-CSRCS  = imxrt_boot.c imxrt_flexspi_nor_boot.c imxrt_flexspi_nor_flash.c
+CSRCS  = imxrt_boot.c
 CSRCS += imxrt_clockconfig.c
+
+# IVT and FlexSPI NOR boot blob are only meaningful when XIP from NOR.
+# RAM-loaded image (CONFIG_BOOT_RUNFROMISRAM) does not need them and
+# their constants (e.g. IMAG_VECTOR_TABLE) reference XIP-only addresses.
+ifeq ($(CONFIG_BOOT_RUNFROMFLASH),y)
+CSRCS += imxrt_flexspi_nor_boot.c imxrt_flexspi_nor_flash.c
+endif
 
 ifeq ($(CONFIG_IMXRT_SDRAMC),y)
 CSRCS += imxrt_sdram.c
