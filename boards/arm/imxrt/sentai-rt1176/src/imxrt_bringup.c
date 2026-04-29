@@ -49,6 +49,10 @@
 #  include <nuttx/usb/pl2303.h>
 #endif
 
+#ifdef CONFIG_CDCACM
+#  include <nuttx/usb/cdcacm.h>
+#endif
+
 #include "imxrt_enet.h"
 #include "sentai-rt1176.h"
 
@@ -188,6 +192,21 @@ int imxrt_bringup(void)
     {
       syslog(LOG_ERR, "ERROR: Failed to start USB host services: %d\n", ret);
       return ret;
+    }
+#endif
+
+#ifdef CONFIG_CDCACM
+  /* Bring up the USB CDC-ACM serial device. With CDCACM_CONSOLE=y this
+   * also installs /dev/console, so NSH can talk to the host as soon as
+   * the USB cable enumerates. The Sentai RT1176 board has no UART
+   * debug header, so this is the only path the host can reach NSH.
+   */
+
+  ret = cdcacm_initialize(0, NULL);
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: cdcacm_initialize failed: %d\n", ret);
+      /* not fatal — board still boots, just no host console */
     }
 #endif
 
