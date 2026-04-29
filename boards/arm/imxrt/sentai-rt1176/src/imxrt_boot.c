@@ -107,6 +107,34 @@ void imxrt_flexram_partition(void)
  *
  ****************************************************************************/
 
+/****************************************************************************
+ * Name: board_reset
+ *
+ * Description:
+ *   board_reset() is exported to NuttX (BOARDCTL_RESET) and triggers a
+ *   system reset via the Cortex-M SCB AIRCR SYSRESETREQ bit. Returns 0
+ *   on success; in practice it does not return because the SoC resets.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_BOARDCTL_RESET
+int board_reset(int status)
+{
+  UNUSED(status);
+
+  __asm__ __volatile__ ("dsb sy" ::: "memory");
+  putreg32(NVIC_AIRCR_VECTKEY | NVIC_AIRCR_SYSRESETREQ, NVIC_AIRCR);
+  __asm__ __volatile__ ("dsb sy" ::: "memory");
+
+  for (; ; )
+    {
+      __asm__ __volatile__ ("wfi");
+    }
+
+  return 0;
+}
+#endif
+
 void imxrt_boardinitialize(void)
 {
   /* Defensive: the coralmicro flashtool elfloader leaves SysTick
