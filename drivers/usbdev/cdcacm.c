@@ -1868,16 +1868,21 @@ static int cdcacm_setup(FAR struct usbdevclass_driver_s *driver,
 #if CONFIG_CDCACM_RESET_BAUD > 0
                 /* Arduino-style "magic baud touch" reset. When the
                  * host opens the serial port at the configured
-                 * "magic" baud value (commonly 1200), interpret it
-                 * as a request to reboot the board so a host-side
-                 * flashing tool can reflash via the ROM bootloader.
+                 * "magic" baud value (commonly 1200), reboot the
+                 * board so a host-side flasher can take over.
                  *
-                 * board_reset() does not return; the reset request
-                 * write completes from interrupt context, which the
-                 * SCB AIRCR write tolerates.
+                 * If the board provides board_reset_to_bootloader()
+                 * (a hook that drops to the ROM bootloader in
+                 * Serial Downloader mode), prefer it: that's what
+                 * Arduino, picotool, esptool and coralmicro
+                 * flashtool actually expect on the receiving end.
+                 * Otherwise fall back to board_reset() which just
+                 * triggers a system reset back into the same image.
                  */
 
                 {
+                  extern void board_reset_to_bootloader(void)
+                      __attribute__((weak));
                   uint32_t reqbaud =
                       ((uint32_t)priv->linecoding.baud[0])       |
                       ((uint32_t)priv->linecoding.baud[1] <<  8) |
@@ -1885,7 +1890,14 @@ static int cdcacm_setup(FAR struct usbdevclass_driver_s *driver,
                       ((uint32_t)priv->linecoding.baud[3] << 24);
                   if (reqbaud == CONFIG_CDCACM_RESET_BAUD)
                     {
-                      board_reset(0);
+                      if (board_reset_to_bootloader)
+                        {
+                          board_reset_to_bootloader();
+                        }
+                      else
+                        {
+                          board_reset(0);
+                        }
                     }
                 }
 #endif

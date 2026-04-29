@@ -125,6 +125,55 @@ int board_reset(int status)
 #endif
 
 /****************************************************************************
+ * Name: board_reset_to_bootloader
+ *
+ * Description:
+ *   Force the i.MX RT1176 ROM bootloader into Serial Downloader Protocol
+ *   (SDP) mode -- the same state hold-SW_BOOT-during-POR puts the chip in.
+ *   The host can then push a fresh image via flashtool / blhost / NXP MCU
+ *   bootloader, without any user action at the board.
+ *
+ *   Implementation: call into the mask-ROM bootloader tree via the
+ *   well-known function pointer at 0x0021001C with arg = 0xEB100000
+ *   ("enter SDP" magic). Same entry coralmicro uses (see
+ *   ~/work/coralmicro/libs/base/reset.cc:31).
+ *
+ *   Does not return.
+ *
+ ****************************************************************************/
+
+void board_reset_to_bootloader(void)
+{
+  /* RT1176 mask-ROM bootloader API tree -- fixed address documented in
+   * the RT1176 reference manual ("Boot ROM" chapter).
+   */
+
+  typedef void (*rt117x_run_bootloader_t)(void *arg);
+
+  struct rt117x_bootloader_tree
+  {
+    rt117x_run_bootloader_t runBootloader;
+    /* further entries (flexspi NOR API, OTP API, ...) intentionally
+     * elided -- we only need runBootloader for the SDP-recover path.
+     */
+  };
+
+  volatile struct rt117x_bootloader_tree **tree_ptr =
+      (volatile struct rt117x_bootloader_tree **)0x0021001Cu;
+  uint32_t boot_arg = 0xEB100000u;  /* "Boot to Serial Downloader" */
+
+  __asm__ __volatile__ ("dsb sy" ::: "memory");
+  (*tree_ptr)->runBootloader(&boot_arg);
+
+  /* runBootloader does not return, but be paranoid. */
+
+  for (; ; )
+    {
+      __asm__ __volatile__ ("wfi");
+    }
+}
+
+/****************************************************************************
  * Name: imxrt_boardinitialize
  *
  * Description:
