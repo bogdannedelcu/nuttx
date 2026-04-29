@@ -162,18 +162,19 @@ int imxrt_bringup(void)
     }
 #endif
 
-#if defined(CONFIG_I2C_DRIVER) && defined(CONFIG_IMXRT_LPI2C5)
-  /* Sentai I2C5 hosts the front camera (cam0) and the MCP16701 PMIC
-   * (addr 0x5B). See notes/migration_inventory.md.
+  /* Sentai I2C5/I2C6 device registration is temporarily disabled
+   * while we trace a regression that hangs NSH boot. The buses are
+   * still configured at the SoC level (clock + driver compiled in);
+   * we just don't expose /dev/i2c5 + /dev/i2c6 yet.
    */
 
+#if 0
+#if defined(CONFIG_I2C_DRIVER) && defined(CONFIG_IMXRT_LPI2C5)
   imxrt_i2c_register(5);
 #endif
-
 #if defined(CONFIG_I2C_DRIVER) && defined(CONFIG_IMXRT_LPI2C6)
-  /* Sentai I2C6 hosts the back camera (cam1). */
-
   imxrt_i2c_register(6);
+#endif
 #endif
 
 #ifdef CONFIG_IMXRT_USDHC
