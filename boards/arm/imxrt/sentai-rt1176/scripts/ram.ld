@@ -84,6 +84,11 @@ SECTIONS
 
     _eronly = ABSOLUTE(.);
 
+    /* .data has its initial-image stored at the end of ITCM (LMA),
+     * runtime address in DTCM (VMA). NuttX's __start copies the
+     * _eronly..(_eronly + (_edata-_sdata)) span from ITCM to DTCM.
+     */
+
     .data :
     {
         _sdata = ABSOLUTE(.);
@@ -92,22 +97,16 @@ SECTIONS
         CONSTRUCTORS
         . = ALIGN(4);
         _edata = ABSOLUTE(.);
-    } > dtcm
+    } > dtcm AT > itcm
 
     .ramfunc ALIGN(4):
     {
         _sramfuncs = ABSOLUTE(.);
         *(.ramfunc  .ramfunc.*)
         _eramfuncs = ABSOLUTE(.);
-    } > itcm
+    } > dtcm AT > itcm
 
-    /* For pure-RAM build .data already lives in dtcm at link time, so
-     * the C startup "copy from _eronly to _sdata" is a self-copy. The
-     * arch start code skips it when LOADADDR == VMA. We still publish
-     * _framfuncs / _ramfuncs symbols for source compatibility.
-     */
-
-    _framfuncs = ADDR(.ramfunc);
+    _framfuncs = LOADADDR(.ramfunc);
 
     .bss :
     {
