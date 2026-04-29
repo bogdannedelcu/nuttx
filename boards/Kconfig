@@ -930,6 +930,19 @@ config ARCH_BOARD_IMXRT1170_EVK
 		This is the board configuration for the port of NuttX to the NXP i.MXRT
 		evaluation kit, MIMXRT1170-EVK.  This board features the MIMXRT1176DVMAA MCU.
 
+config ARCH_BOARD_SENTAI_RT1176
+	bool "autonomous.ro Sentai RT1176 custom board"
+	depends on ARCH_CHIP_MIMXRT1176DVMAA
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	---help---
+		This is the board configuration for the port of NuttX to the
+		autonomous.ro Sentai RT1176 custom board (NXP MIMXRT1176DVMAA).
+		Derived from the imxrt1170-evk reference design — same SoC,
+		different pin mux, no UART debug header (USB CDC-ACM is the only
+		host console). Hardware also includes OV5640 cameras, EdgeTPU
+		over USB, and FlexSPI NAND.
+
 config ARCH_BOARD_IMX93_QSB
 	bool "NXP i.MX 93 QSB (Cortex M33)"
 	depends on ARCH_CHIP_IMX9_CORTEX_M
@@ -3690,6 +3703,7 @@ config ARCH_BOARD
 	default "imxrt1060-evk"                if ARCH_BOARD_IMXRT1060_EVK
 	default "imxrt1064-evk"                if ARCH_BOARD_IMXRT1064_EVK
 	default "imxrt1170-evk"                if ARCH_BOARD_IMXRT1170_EVK
+	default "sentai-rt1176"                if ARCH_BOARD_SENTAI_RT1176
 	default "imx93-qsb"                    if ARCH_BOARD_IMX93_QSB
 	default "imx95-evk"                    if ARCH_BOARD_IMX95_EVK
 	default "mr-navq95b"                   if ARCH_BOARD_MR_NAVQ95B
@@ -4133,6 +4147,9 @@ source "boards/arm/imxrt/imxrt1064-evk/Kconfig"
 endif
 if ARCH_BOARD_IMXRT1170_EVK
 source "boards/arm/imxrt/imxrt1170-evk/Kconfig"
+endif
+if ARCH_BOARD_SENTAI_RT1176
+source "boards/arm/imxrt/sentai-rt1176/Kconfig"
 endif
 if ARCH_BOARD_IMX93_QSB
 source "boards/arm/imx9/imx93-qsb/Kconfig"
