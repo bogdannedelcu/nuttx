@@ -149,10 +149,22 @@ static const uint32_t g_nand_lut[][4] =
                     FLEXSPI_COMMAND_STOP,     FLEXSPI_1PAD, 0x00),
   },
 
+  /* Get/Set Feature: opcode + register address are TWO consecutive
+   * CMD_SDR ops, not opcode + RADDR. The "address" passed to the
+   * sequencer is unused for these LUTs; the register byte is hard-
+   * coded in the LUT itself, so we keep one LUT per (cmd, reg) pair.
+   *
+   * 0xA0 = NAND_REG_PROTECTION (block-protect bits)
+   * 0xB0 = NAND_REG_CONFIG     (chip features)
+   * 0xC0 = NAND_REG_STATUS     (busy/WEL/ECC/program-fail)
+   *
+   * We only need GET 0xC0 (status) and SET 0xA0 (unlock) for now.
+   */
+
   [LUT_GET_FEATURE] =
   {
     FLEXSPI_LUT_SEQ(FLEXSPI_COMMAND_SDR,      FLEXSPI_1PAD, 0x0f,
-                    FLEXSPI_COMMAND_RADDR_SDR, FLEXSPI_1PAD, 0x08),
+                    FLEXSPI_COMMAND_SDR,      FLEXSPI_1PAD, 0xc0),
     FLEXSPI_LUT_SEQ(FLEXSPI_COMMAND_READ_SDR, FLEXSPI_1PAD, 0x01,
                     FLEXSPI_COMMAND_STOP,     FLEXSPI_1PAD, 0x00),
   },
@@ -160,7 +172,7 @@ static const uint32_t g_nand_lut[][4] =
   [LUT_SET_FEATURE] =
   {
     FLEXSPI_LUT_SEQ(FLEXSPI_COMMAND_SDR,       FLEXSPI_1PAD, 0x1f,
-                    FLEXSPI_COMMAND_RADDR_SDR, FLEXSPI_1PAD, 0x08),
+                    FLEXSPI_COMMAND_SDR,       FLEXSPI_1PAD, 0xa0),
     FLEXSPI_LUT_SEQ(FLEXSPI_COMMAND_WRITE_SDR, FLEXSPI_1PAD, 0x01,
                     FLEXSPI_COMMAND_STOP,      FLEXSPI_1PAD, 0x00),
   },
@@ -177,20 +189,25 @@ static const uint32_t g_nand_lut[][4] =
                     FLEXSPI_COMMAND_RADDR_SDR, FLEXSPI_1PAD, 0x18),
   },
 
+  /* READ_FROM_CACHE: opcode + 16-bit column address, then 8 dummy
+   * cycles, then bulk read. NB: column address goes to CADDR_SDR
+   * (not RADDR which is for the row).
+   */
+
   [LUT_READ_CACHE] =
   {
     FLEXSPI_LUT_SEQ(FLEXSPI_COMMAND_SDR,       FLEXSPI_1PAD, 0x03,
-                    FLEXSPI_COMMAND_RADDR_SDR, FLEXSPI_1PAD, 0x10),
+                    FLEXSPI_COMMAND_CADDR_SDR, FLEXSPI_1PAD, 0x10),
     FLEXSPI_LUT_SEQ(FLEXSPI_COMMAND_DUMMY_SDR, FLEXSPI_1PAD, 0x08,
                     FLEXSPI_COMMAND_READ_SDR,  FLEXSPI_1PAD, 0x04),
-    FLEXSPI_LUT_SEQ(FLEXSPI_COMMAND_STOP,      FLEXSPI_1PAD, 0x00,
-                    FLEXSPI_COMMAND_STOP,      FLEXSPI_1PAD, 0x00),
   },
+
+  /* PROG_LOAD: opcode + 16-bit column + bulk write. */
 
   [LUT_PROG_LOAD] =
   {
     FLEXSPI_LUT_SEQ(FLEXSPI_COMMAND_SDR,       FLEXSPI_1PAD, 0x02,
-                    FLEXSPI_COMMAND_RADDR_SDR, FLEXSPI_1PAD, 0x10),
+                    FLEXSPI_COMMAND_CADDR_SDR, FLEXSPI_1PAD, 0x10),
     FLEXSPI_LUT_SEQ(FLEXSPI_COMMAND_WRITE_SDR, FLEXSPI_1PAD, 0x04,
                     FLEXSPI_COMMAND_STOP,      FLEXSPI_1PAD, 0x00),
   },
@@ -256,13 +273,22 @@ static int sentai_nand_cmd(struct sentai_nand_dev_s *dev,
   return FLEXSPI_TRANSFER(dev->flexspi, &xfer);
 }
 
-static int sentai_nand_read_reg(struct sentai_nand_dev_s *dev,
-                                uint8_t reg, uint8_t *val)
+/* Note: the register address (0xC0 for status, 0xA0 for protect) is
+ * baked into the LUT itself rather than passed as device_address,
+ * because the W25N "Get/Set Feature" command takes the register
+ * address as a second 8-bit opcode byte rather than an address phase.
+ * This matches the NXP MfgTool / SDK reference (flexspi_nand_config_
+ * MIMXRT1176.c). For now we only read NAND_REG_STATUS and write
+ * NAND_REG_PROTECTION; both have dedicated LUT entries.
+ */
+
+static int sentai_nand_read_status(struct sentai_nand_dev_s *dev,
+                                   uint8_t *val)
 {
   uint32_t buf = 0;
   struct flexspi_transfer_s xfer =
   {
-    .device_address = reg,
+    .device_address = 0,
     .port           = dev->port,
     .cmd_type       = FLEXSPI_READ,
     .seq_index      = LUT_GET_FEATURE,
@@ -279,13 +305,13 @@ static int sentai_nand_read_reg(struct sentai_nand_dev_s *dev,
   return ret;
 }
 
-static int sentai_nand_write_reg(struct sentai_nand_dev_s *dev,
-                                 uint8_t reg, uint8_t val)
+static int sentai_nand_write_protect_reg(struct sentai_nand_dev_s *dev,
+                                         uint8_t val)
 {
   uint32_t buf = val;
   struct flexspi_transfer_s xfer =
   {
-    .device_address = reg,
+    .device_address = 0,
     .port           = dev->port,
     .cmd_type       = FLEXSPI_WRITE,
     .seq_index      = LUT_SET_FEATURE,
@@ -305,7 +331,7 @@ static int sentai_nand_wait_busy(struct sentai_nand_dev_s *dev,
 
   do
     {
-      int ret = sentai_nand_read_reg(dev, NAND_REG_STATUS, &status);
+      int ret = sentai_nand_read_status(dev, &status);
       if (ret < 0)
         {
           return ret;
@@ -640,7 +666,7 @@ struct mtd_dev_s *imxrt_flexspi_nand_initialize(int intf)
   up_mdelay(2);
   sentai_nand_wait_busy(priv, 5000, &status);
 
-  ret = sentai_nand_write_reg(priv, NAND_REG_PROTECTION, 0x00);
+  ret = sentai_nand_write_protect_reg(priv, 0x00);
   if (ret < 0)
     {
       ferr("nand: unlock failed: %d\n", ret);
