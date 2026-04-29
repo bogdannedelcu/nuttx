@@ -97,17 +97,6 @@ void imxrt_flexram_partition(void)
 }
 
 /****************************************************************************
- * Name: imxrt_boardinitialize
- *
- * Description:
- *   All i.MX RT architectures must provide the following entry point.  This
- *   entry point is called early in the initialization -- after clocking and
- *   memory have been configured but before caches have been enabled and
- *   before any devices have been initialized.
- *
- ****************************************************************************/
-
-/****************************************************************************
  * Name: board_reset
  *
  * Description:
@@ -134,6 +123,17 @@ int board_reset(int status)
   return 0;
 }
 #endif
+
+/****************************************************************************
+ * Name: imxrt_boardinitialize
+ *
+ * Description:
+ *   All i.MX RT architectures must provide the following entry point.  This
+ *   entry point is called early in the initialization -- after clocking and
+ *   memory have been configured but before caches have been enabled and
+ *   before any devices have been initialized.
+ *
+ ****************************************************************************/
 
 void imxrt_boardinitialize(void)
 {

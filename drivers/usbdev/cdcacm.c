@@ -26,6 +26,9 @@
 
 #include <nuttx/config.h>
 #include <nuttx/spinlock.h>
+#if CONFIG_CDCACM_RESET_BAUD > 0
+#  include <nuttx/board.h>
+#endif
 
 #include <sys/types.h>
 #include <stdint.h>
@@ -1861,6 +1864,31 @@ static int cdcacm_setup(FAR struct usbdevclass_driver_s *driver,
                   {
                     priv->callback(CDCACM_EVENT_LINECODING);
                   }
+
+#if CONFIG_CDCACM_RESET_BAUD > 0
+                /* Arduino-style "magic baud touch" reset. When the
+                 * host opens the serial port at the configured
+                 * "magic" baud value (commonly 1200), interpret it
+                 * as a request to reboot the board so a host-side
+                 * flashing tool can reflash via the ROM bootloader.
+                 *
+                 * board_reset() does not return; the reset request
+                 * write completes from interrupt context, which the
+                 * SCB AIRCR write tolerates.
+                 */
+
+                {
+                  uint32_t reqbaud =
+                      ((uint32_t)priv->linecoding.baud[0])       |
+                      ((uint32_t)priv->linecoding.baud[1] <<  8) |
+                      ((uint32_t)priv->linecoding.baud[2] << 16) |
+                      ((uint32_t)priv->linecoding.baud[3] << 24);
+                  if (reqbaud == CONFIG_CDCACM_RESET_BAUD)
+                    {
+                      board_reset(0);
+                    }
+                }
+#endif
               }
             else
               {

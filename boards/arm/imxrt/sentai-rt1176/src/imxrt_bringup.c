@@ -162,19 +162,8 @@ int imxrt_bringup(void)
     }
 #endif
 
-  /* Sentai I2C5/I2C6 device registration is temporarily disabled
-   * while we trace a regression that hangs NSH boot. The buses are
-   * still configured at the SoC level (clock + driver compiled in);
-   * we just don't expose /dev/i2c5 + /dev/i2c6 yet.
-   */
-
-#if 0
 #if defined(CONFIG_I2C_DRIVER) && defined(CONFIG_IMXRT_LPI2C5)
   imxrt_i2c_register(5);
-#endif
-#if defined(CONFIG_I2C_DRIVER) && defined(CONFIG_IMXRT_LPI2C6)
-  imxrt_i2c_register(6);
-#endif
 #endif
 
 #ifdef CONFIG_IMXRT_USDHC

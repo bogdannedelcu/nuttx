@@ -757,6 +757,27 @@ config CDCACM_PRODUCTSTR
 	default "CDC/ACM Serial"
 
 endif # !CDCACM_COMPOSITE
+
+config CDCACM_RESET_BAUD
+	int "Reboot the board when host sets this CDC-ACM baud rate (0 = disabled)"
+	default 0
+	depends on BOARDCTL_RESET
+	---help---
+		Arduino-style "magic baud touch" reset.
+
+		When the USB host issues a CDC SET_LINE_CODING with the
+		exact baud value configured here, the driver invokes
+		board_reset(0) -- normally an SCB SYSRESETREQ -- which
+		reboots the board into its bootloader (or back to the ROM
+		USB downloader on imxrt-class chips).
+
+		Common host-side flashing tools (Arduino IDE, esptool,
+		coralmicro flashtool.py --ram, picotool, ...) trigger this
+		by opening the serial port at 1200 baud with DTR low.
+
+		Set to 1200 to match the de-facto convention.  Set to 0 to
+		disable the feature (driver behaves exactly as upstream).
+
 endif # CDCACM
 
 menuconfig USBADB
