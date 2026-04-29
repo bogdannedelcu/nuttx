@@ -2918,8 +2918,17 @@ void arm_usbinitialize(void)
 
   imxrt_putreg(0, IMXRT_USBDEV_USBINTR(0));
 
-  /* Soft reset PHY and enable clock */
+  /* Soft reset USBPHY then release. The original code only released
+   * SFTRST (and ungated the clock); if a previous owner of the bus
+   * (e.g. a chained ROM/elfloader stage) left the PHY in a partial
+   * state, that release-only sequence inherited the bad state and
+   * the host saw GET_DESCRIPTOR EPROTO failures right after handover.
+   * Force a full reset cycle: assert SFTRST, hold briefly, clear it,
+   * then ungate the clock.
+   */
 
+  imxrt_setbits(USBPHY_CTRL_SFTRST, IMXRT_USBPHY_CTRL(0));
+  up_udelay(10);
   putreg32(USBPHY_CTRL_SFTRST | USBPHY_CTRL_CLKGATE,
            IMXRT_USBPHY_CTRL_CLR(0));
 
@@ -2932,6 +2941,17 @@ void arm_usbinitialize(void)
   imxrt_setbits(USBDEV_USBCMD_RST, IMXRT_USBDEV_USBCMD(0));
   while (imxrt_getreg(IMXRT_USBDEV_USBCMD(0)) & USBDEV_USBCMD_RST)
       ;
+
+  /* Enable UTMI+ levels 2 and 3. Level 2 supports low-speed devices;
+   * Level 3 supports an external full-speed hub with low-speed devices
+   * connected through it. The NXP SDK USB_EhciLowPowerPhyInit sets
+   * these and we mirror that — without them some hosts see GET_DESCRIPTOR
+   * EPROTO failures when our NuttX takes the bus over from the
+   * coralmicro elfloader. (Bug-for-bug parity with the working stack.)
+   */
+
+  imxrt_setbits(USBPHY_CTRL_ENUTMILEVEL2 | USBPHY_CTRL_ENUTMILEVEL3,
+                IMXRT_USBPHY_CTRL(0));
 
   /* Power up the PHY (turn off power disable) - USBPHYx_PWDn
    * Manual: The USB PHY Power-Down Register provides overall control of the
