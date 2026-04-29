@@ -64,6 +64,9 @@
 
 #include "arm_internal.h"     /* up_mdelay / up_udelay */
 #include "imxrt_flexspi.h"
+#include "imxrt_iomuxc.h"
+#include "imxrt_gpio.h"
+#include "hardware/imxrt_pinmux.h"
 #include "sentai-rt1176.h"
 
 #ifdef CONFIG_SENTAI_RT1176_FLEXSPI_NAND
@@ -634,6 +637,21 @@ struct mtd_dev_s *imxrt_flexspi_nand_initialize(int intf)
     {
       return &priv->mtd;
     }
+
+  /* Configure the FlexSPI1 port-A pad mux for the on-board NAND.
+   * Pin assignment matches coralmicro pin_mux.c (GPIO_SD_B2_06..11).
+   * board.h's GPIO_FLEXSPI_* defines (option _2) point to the same
+   * pads -- they were set up for the EVK NOR but the chip wired on
+   * the Sentai board is the W25N NAND on the same FlexSPI1 port A.
+   * imxrt_flexspi_initialize() will not configure these pins itself.
+   */
+
+  imxrt_config_gpio(GPIO_FLEXSPI1_A_SS0_B_1  | IOMUX_FLEXSPI_DEFAULT);
+  imxrt_config_gpio(GPIO_FLEXSPI1_A_SCLK_1   | IOMUX_FLEXSPI_DEFAULT);
+  imxrt_config_gpio(GPIO_FLEXSPI1_A_DATA0_1  | IOMUX_FLEXSPI_DEFAULT);
+  imxrt_config_gpio(GPIO_FLEXSPI1_A_DATA1_1  | IOMUX_FLEXSPI_DEFAULT);
+  imxrt_config_gpio(GPIO_FLEXSPI1_A_DATA2_1  | IOMUX_FLEXSPI_DEFAULT);
+  imxrt_config_gpio(GPIO_FLEXSPI1_A_DATA3_1  | IOMUX_FLEXSPI_DEFAULT);
 
   priv->flexspi = imxrt_flexspi_initialize(intf);
   if (priv->flexspi == NULL)
