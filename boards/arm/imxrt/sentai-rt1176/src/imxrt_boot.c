@@ -32,6 +32,7 @@
 #include "imxrt_start.h"
 #include "sentai-rt1176.h"
 #include "arm_internal.h"
+#include "nvic.h"
 #ifdef CONFIG_BOOT_RUNFROMFLASH
 #  include "imxrt_flexspi_nor_boot.h"
 #endif
@@ -108,6 +109,29 @@ void imxrt_flexram_partition(void)
 
 void imxrt_boardinitialize(void)
 {
+  /* Defensive: the coralmicro flashtool elfloader leaves SysTick
+   * running with its own (now-stale) configuration. NuttX's
+   * up_irqinitialize() unmasks IRQs at the end (`cpsie i`) before
+   * up_timer_initialize() installs our SysTick handler, so any
+   * leftover SysTick exception (live or pending) fires straight into
+   * irq_unexpected_isr -> assert.
+   *
+   * Mitigations, in order:
+   *   1. Disable SysTick (CTRL/RELOAD/CURRENT all zero).
+   *   2. Clear the SysTick pending bit in ICSR (PENDSTCLR = bit 25).
+   *      A pending exception survives the CTRL clear; ICSR is the
+   *      only way to drop it without a real timer fire.
+   *   3. DSB/ISB so the write retires before any subsequent code
+   *      can re-enable interrupts.
+   */
+
+  putreg32(0, NVIC_SYSTICK_CTRL);
+  putreg32(0, NVIC_SYSTICK_RELOAD);
+  putreg32(0, NVIC_SYSTICK_CURRENT);
+  putreg32(NVIC_INTCTRL_PENDSTCLR, NVIC_INTCTRL);
+  __asm__ __volatile__ ("dsb sy" ::: "memory");
+  __asm__ __volatile__ ("isb sy" ::: "memory");
+
   /* Configure on-board LEDs if LED support has been selected. */
 
 #ifdef CONFIG_ARCH_LEDS
