@@ -666,6 +666,34 @@ struct mtd_dev_s *imxrt_flexspi_nand_initialize(int intf)
   up_mdelay(2);
   sentai_nand_wait_busy(priv, 5000, &status);
 
+  /* Diagnostic: read JEDEC ID. Winbond W25N01: returns 0xEF 0xAA 0x21
+   * (manufacturer / device hi / device lo). Used to confirm the LUT
+   * + FlexSPI controller path is alive before we start exercising the
+   * page/program/erase paths.
+   */
+
+  uint8_t id[4] = {0};
+  struct flexspi_transfer_s id_xfer =
+  {
+    .device_address = 0,
+    .port           = priv->port,
+    .cmd_type       = FLEXSPI_READ,
+    .seq_index      = LUT_READ_ID,
+    .seq_number     = 1,
+    .data           = (uint32_t *)id,
+    .data_size      = 3,
+  };
+
+  if (FLEXSPI_TRANSFER(priv->flexspi, &id_xfer) == 0)
+    {
+      syslog(LOG_INFO, "[sentai-nand] JEDEC ID: %02x %02x %02x\n",
+             id[0], id[1], id[2]);
+    }
+  else
+    {
+      syslog(LOG_ERR, "[sentai-nand] JEDEC ID read failed\n");
+    }
+
   ret = sentai_nand_write_protect_reg(priv, 0x00);
   if (ret < 0)
     {
