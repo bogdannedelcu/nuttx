@@ -96,6 +96,10 @@ ifeq ($(CONFIG_IMXRT1170_FLEXSPI_NOR),y)
 CSRCS += imxrt_flexspi_nor.c
 endif
 
+ifeq ($(CONFIG_SENTAI_RT1176_FLEXSPI_NAND),y)
+CSRCS += imxrt_flexspi_nand.c
+endif
+
 ifeq ($(CONFIG_IMXRT1170_FLEXSPI_FRAM),y)
 CSRCS += imxrt_flexspi_fram.c
 endif

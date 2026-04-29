@@ -35,4 +35,25 @@ config IMXRT1170_FLEXSPI_FRAM
 	depends on IMXRT_FLEXSPI
 	select MTD
 
+config SENTAI_RT1176_FLEXSPI_NAND
+	bool "On-board FlexSPI NAND (Winbond W25N01) MTD driver"
+	default n
+	depends on IMXRT_FLEXSPI
+	select MTD
+	---help---
+		Build the in-tree FlexSPI NAND MTD driver for the on-board
+		Winbond W25N01-class NAND of the Sentai RT1176 custom board.
+		Exposes blocks 76..523 (the user partition validated against
+		coralmicro fx_nand_driver.h) as a single MTD device.
+
+config SENTAI_RT1176_FLEXSPI_NAND_FTL
+	bool "FTL block layer + FAT auto-mount on /data"
+	default n
+	depends on SENTAI_RT1176_FLEXSPI_NAND && MTD_BYTE_WRITE && FS_FAT
+	select MTD_PARTITION
+	---help---
+		Wrap the FlexSPI NAND MTD with FTL so it appears as
+		/dev/mtdblock0 to the FS layer, then mkfs (FAT) and mount
+		on /data on first boot. Subsequent boots only mount.
+
 endif

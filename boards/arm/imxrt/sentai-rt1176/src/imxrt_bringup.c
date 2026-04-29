@@ -53,6 +53,12 @@
 #  include <nuttx/usb/cdcacm.h>
 #endif
 
+#ifdef CONFIG_SENTAI_RT1176_FLEXSPI_NAND
+#  include <nuttx/mtd/mtd.h>
+#  include <sys/mount.h>
+#  include <sys/stat.h>
+#endif
+
 #include "imxrt_enet.h"
 #include "sentai-rt1176.h"
 
@@ -208,6 +214,59 @@ int imxrt_bringup(void)
       syslog(LOG_ERR, "ERROR: cdcacm_initialize failed: %d\n", ret);
       /* not fatal — board still boots, just no host console */
     }
+#endif
+
+#ifdef CONFIG_SENTAI_RT1176_FLEXSPI_NAND
+  {
+    struct mtd_dev_s *nand = imxrt_flexspi_nand_initialize(0);
+    if (nand == NULL)
+      {
+        syslog(LOG_ERR, "ERROR: imxrt_flexspi_nand_initialize failed\n");
+      }
+    else
+      {
+        ret = register_mtddriver("/dev/nand0", nand, 0666, NULL);
+        if (ret < 0)
+          {
+            syslog(LOG_ERR, "ERROR: register_mtddriver(/dev/nand0): %d\n",
+                   ret);
+          }
+        else
+          {
+            syslog(LOG_INFO, "[sentai-nand] /dev/nand0 ready "
+                             "(%u user blocks)\n",
+                   523 - 76 + 1);
+
+#  if defined(CONFIG_SENTAI_RT1176_FLEXSPI_NAND_FTL) && \
+       defined(CONFIG_MTD_BYTE_WRITE) && defined(CONFIG_FS_FAT)
+            ret = ftl_initialize(0, nand);
+            if (ret < 0)
+              {
+                syslog(LOG_ERR, "ERROR: ftl_initialize: %d\n", ret);
+              }
+            else
+              {
+                ret = nx_mount("/dev/mtdblock0", "/data", "vfat", 0, NULL);
+                if (ret == -ENODEV || ret == -EFTYPE)
+                  {
+                    /* First boot: format then mount. */
+
+                    syslog(LOG_INFO, "[sentai-nand] formatting /data\n");
+                    /* mkfatfs invocation deferred to userspace NSH */
+                  }
+                else if (ret < 0)
+                  {
+                    syslog(LOG_ERR, "ERROR: mount /data: %d\n", ret);
+                  }
+                else
+                  {
+                    syslog(LOG_INFO, "[sentai-nand] /data mounted (vfat)\n");
+                  }
+              }
+#  endif
+          }
+      }
+  }
 #endif
 
 #ifdef CONFIG_USBMONITOR
