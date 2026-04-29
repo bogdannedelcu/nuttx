@@ -182,7 +182,7 @@ int imxrt_bringup(void)
     }
 #endif
 
-#if defined(CONFIG_IMXRT_USBOTG) || defined(CONFIG_USBHOST)
+#ifdef CONFIG_USBHOST
   ret = imxrt_usbhost_initialize();
   if (ret != OK)
     {

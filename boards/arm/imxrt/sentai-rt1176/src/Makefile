@@ -73,7 +73,7 @@ ifeq ($(CONFIG_IMXRT_LCD),y)
 CSRCS += imxrt_lcd.c
 endif
 
-ifeq ($(CONFIG_IMXRT_USBOTG),y)
+ifeq ($(CONFIG_USBHOST),y)
 CSRCS += imxrt_usbhost.c
 endif
 
