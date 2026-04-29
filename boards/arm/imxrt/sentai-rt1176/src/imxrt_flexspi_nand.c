@@ -66,6 +66,7 @@
 #include "imxrt_flexspi.h"
 #include "imxrt_iomuxc.h"
 #include "imxrt_gpio.h"
+#include "imxrt_periphclks.h"
 #include "hardware/imxrt_pinmux.h"
 #include "sentai-rt1176.h"
 
@@ -232,21 +233,37 @@ static const uint32_t g_nand_lut[][4] =
  * CCM root configured in imxrt_clockconfig.c.
  */
 
+/* Device config — values mirrored from coralmicro
+ * libs/nxp/rt1176-sdk/board_hardware.c BOARD_InitNAND() so the FlexSPI
+ * controller speaks the chip's native protocol:
+ *
+ *   - flash_size  : 0x40000 in NXP units (256 MB virtual address space
+ *                   covering data + per-page spare).
+ *   - cs_interval : 2 SCK cycles between back-to-back commands.
+ *   - data_valid_time : 0 (no extra latency on the data sample).
+ *   - columnspace : 12 — the W25N uses a 12-bit column address inside
+ *                       the page; without this the FlexSPI core sends
+ *                       no column phase and the chip never sees the
+ *                       opcode.  This was the missing piece.
+ *   - awr/ard seq ids = 0 — we drive everything explicitly via
+ *                          FLEXSPI_TRANSFER, no AHB autoread for now.
+ */
+
 static const struct flexspi_device_config_s g_nand_config =
 {
   .flexspi_root_clk        = 0,                /* runtime, see init */
-  .flash_size              = (NAND_TOTAL_BLOCKS * NAND_BLOCK_SIZE) >> 10, /* KB */
+  .flash_size              = 0x40000,
   .cs_interval_unit        = FLEXSPI_CS_INTERVAL_UNIT1_SCK_CYCLE,
-  .cs_interval             = 0,
+  .cs_interval             = 2,
   .cs_hold_time            = 3,
   .cs_setup_time           = 3,
-  .data_valid_time         = 2,
-  .columnspace             = 0,
+  .data_valid_time         = 0,
+  .columnspace             = 12,
   .enable_word_address     = false,
   .awr_seq_index           = 0,
   .awr_seq_number          = 0,
-  .ard_seq_index           = LUT_READ_CACHE,
-  .ard_seq_number          = 1,
+  .ard_seq_index           = 0,
+  .ard_seq_number          = 0,
   .ahb_write_wait_unit     = FLEXSPI_AHB_WRITE_WAIT_UNIT2_AHB_CYCLE,
   .ahb_write_wait_interval = 0,
   .enable_write_mask       = false,
@@ -652,6 +669,16 @@ struct mtd_dev_s *imxrt_flexspi_nand_initialize(int intf)
   imxrt_config_gpio(GPIO_FLEXSPI1_A_DATA1_1  | IOMUX_FLEXSPI_DEFAULT);
   imxrt_config_gpio(GPIO_FLEXSPI1_A_DATA2_1  | IOMUX_FLEXSPI_DEFAULT);
   imxrt_config_gpio(GPIO_FLEXSPI1_A_DATA3_1  | IOMUX_FLEXSPI_DEFAULT);
+
+  /* Enable the FlexSPI peripheral clock gate. NuttX's
+   * imxrt_flexspi_initialize() does not currently take care of the
+   * CCGR side, so without this the controller's registers are
+   * accessible (CCM root is enabled) but the peripheral itself
+   * isn't actually clocked, which presents as "the chip doesn't
+   * respond to anything" because no SCLK ever leaves the SoC.
+   */
+
+  imxrt_clockall_flexspi();
 
   priv->flexspi = imxrt_flexspi_initialize(intf);
   if (priv->flexspi == NULL)
